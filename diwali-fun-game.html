@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diwali Dhoom 3D - Indian Festival Fireworks Game</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Three.js & OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Rozha+One&family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            user-select: none;
+            overflow: hidden;
+            background-color: #090314;
+        }
+        .font-heading {
+            font-family: 'Rozha One', serif;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        /* Glassmorphism styling */
+        .glass-panel {
+            background: rgba(18, 7, 34, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        .btn-firework {
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .btn-firework:hover {
+            transform: translateY(-3px) scale(1.03);
+        }
+        .btn-firework.active {
+            border-color: #fbbf24;
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.8), rgba(180, 83, 9, 0.9));
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.6);
+        }
+    </style>
+</head>
+<body class="relative w-screen h-screen">
+
+    <!-- 3D WebGL Canvas Viewport -->
+    <div id="canvas-container" class="absolute inset-0 w-full h-full"></div>
+
+    <!-- UI Overlay Header -->
+    <header class="absolute top-4 left-4 right-4 flex justify-between items-center pointer-events-none z-20">
+        <div class="glass-panel px-5 py-3 rounded-2xl pointer-events-auto flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-full bg-amber-500/20 border border-amber-400 flex items-center justify-center text-amber-300 text-xl">
+                🪔
+            </div>
+            <div>
+                <h1 class="font-heading text-xl md:text-2xl text-amber-300 tracking-wider">DIWALI DHOOM 3D</h1>
+                <p class="text-[10px] text-amber-100/70 uppercase tracking-widest font-semibold">Indian Terrace Fireworks Simulator</p>
+            </div>
+        </div>
+
+        <!-- Celebration Stats -->
+        <div class="flex items-center space-x-3 pointer-events-auto">
+            <div class="glass-panel px-4 py-2 rounded-xl text-center">
+                <span class="text-[10px] uppercase text-amber-200/60 block font-semibold">Celebration Score</span>
+                <span id="score-counter" class="text-xl font-bold text-amber-300 font-heading">0</span>
+            </div>
+            <div class="glass-panel px-4 py-2 rounded-xl text-center">
+                <span class="text-[10px] uppercase text-amber-200/60 block font-semibold">Crackers Burst</span>
+                <span id="burst-counter" class="text-xl font-bold text-amber-300 font-heading">0</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Camera Control Quick Selector -->
+    <div class="absolute top-20 right-4 z-20 flex flex-col space-y-2">
+        <button onclick="setCameraMode('orbit')" class="glass-panel p-3 rounded-xl text-amber-300 hover:text-white transition shadow-md" title="Orbit Camera">
+            <i class="fa-solid fa-camera-rotate text-lg"></i>
+        </button>
+        <button onclick="setCameraMode('top')" class="glass-panel p-3 rounded-xl text-amber-300 hover:text-white transition shadow-md" title="Terrace Top View">
+            <i class="fa-solid fa-layer-group text-lg"></i>
+        </button>
+        <button onclick="setCameraMode('character')" class="glass-panel p-3 rounded-xl text-amber-300 hover:text-white transition shadow-md" title="People POV View">
+            <i class="fa-solid fa-user-astronaut text-lg"></i>
+        </button>
+    </div>
+
+    <!-- Fireworks Selection Bar (Bottom UI) -->
+    <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 w-full max-w-2xl px-4">
+        <div class="glass-panel p-3 rounded-3xl flex items-center justify-between space-x-2">
+            <!-- Rocket -->
+            <button id="btn-rocket" onclick="selectCracker('rocket')" class="btn-firework active flex-1 py-2.5 px-3 rounded-2xl border border-amber-500/30 text-center flex flex-col items-center">
+                <span class="text-2xl mb-0.5">🚀</span>
+                <span class="text-xs font-bold text-amber-200 font-heading">Rocket</span>
+            </button>
+
+            <!-- Ground Spinner (Chakri) -->
+            <button id="btn-chakri" onclick="selectCracker('chakri')" class="btn-firework flex-1 py-2.5 px-3 rounded-2xl border border-amber-500/30 text-center flex flex-col items-center">
+                <span class="text-2xl mb-0.5">🍥</span>
+                <span class="text-xs font-bold text-amber-200 font-heading">Chakri</span>
+            </button>
+
+            <!-- Flowerpot (Anar) -->
+            <button id="btn-anar" onclick="selectCracker('anar')" class="btn-firework flex-1 py-2.5 px-3 rounded-2xl border border-amber-500/30 text-center flex flex-col items-center">
+                <span class="text-2xl mb-0.5">🏺</span>
+                <span class="text-xs font-bold text-amber-200 font-heading">Anar</span>
+            </button>
+
+            <!-- Sutli Bomb -->
+            <button id="btn-bomb" onclick="selectCracker('bomb')" class="btn-firework flex-1 py-2.5 px-3 rounded-2xl border border-amber-500/30 text-center flex flex-col items-center">
+                <span class="text-2xl mb-0.5">💣</span>
+                <span class="text-xs font-bold text-amber-200 font-heading">Sutli Bomb</span>
+            </button>
+
+            <!-- Garland (Ladi) -->
+            <button id="btn-ladi" onclick="selectCracker('ladi')" class="btn-firework flex-1 py-2.5 px-3 rounded-2xl border border-amber-500/30 text-center flex flex-col items-center">
+                <span class="text-2xl mb-0.5">💥</span>
+                <span class="text-xs font-bold text-amber-200 font-heading">Ladi</span>
+            </button>
+        </div>
+        <p class="text-center text-[11px] text-amber-200/80 mt-2 font-medium bg-slate-950/60 py-1 rounded-full border border-amber-500/20 backdrop-blur-sm">
+            💡 Click on terrace floor or sky to spawn & burst crackers! Watch characters react!
+        </p>
+    </div>
+
+    <!-- MAIN GAME SIMULATION CODE -->
+    <script>
+        /* ==========================================================================
+           3D DIWALI DHOOM GAME ENGINE (THREE.JS + PARTICLE PHYSICS + RAGDOLL REACTION)
+           ========================================================================== */
+
+        // Global Game State
+        let scene, camera, renderer, controls;
+        let selectedCracker = 'rocket';
+        let score = 0;
+        let burstCount = 0;
+
+        // Game Entities Arrays
+        const characters = [];
+        const activeFireworks = [];
+        const activeParticles = [];
+        const terraceLights = [];
+
+        // Raycasting for ground clicking
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let terraceFloorMesh;
+
+        // Initialize 3D Engine on Window Load
+        window.onload = function() {
+            initScene();
+            buildTerraceEnvironment();
+            spawnIndianCharacters();
+            setupEventListeners();
+            animate();
+        };
+
+        /* ------------------------------------------------------------------------
+           1. THREE.JS SCENE SETUP
+           ------------------------------------------------------------------------ */
+        function initScene() {
+            const container = document.getElementById('canvas-container');
+
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x060212);
+            scene.fog = new THREE.FogExp2(0x060212, 0.015);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 14, 26);
+
+            // WebGL Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            container.appendChild(renderer.domElement);
+
+            // Orbit Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 - 0.02; // Don't go under floor
+            controls.minDistance = 5;
+            controls.maxDistance = 50;
+            controls.target.set(0, 3, 0);
+
+            // Lighting System
+            const ambientLight = new THREE.AmbientLight(0x2a1b4e, 0.8);
+            scene.add(ambientLight);
+
+            // Moon Light
+            const moonLight = new THREE.DirectionalLight(0x7c92ff, 0.6);
+            moonLight.position.set(20, 40, -20);
+            moonLight.castShadow = true;
+            moonLight.shadow.mapSize.width = 1024;
+            moonLight.shadow.mapSize.height = 1024;
+            scene.add(moonLight);
+
+            // Warm Ambient Terrace Point Light
+            const terraceWarmLight = new THREE.PointLight(0xff9d00, 1.2, 35);
+            terraceWarmLight.position.set(0, 6, 0);
+            scene.add(terraceWarmLight);
+        }
+
+        /* ------------------------------------------------------------------------
+           2. TERRACE & FESTIVAL ENVIRONMENT
+           ------------------------------------------------------------------------ */
+        function buildTerraceEnvironment() {
+            // Terrace Floor (Tile Texture Pattern)
+            const floorGeo = new THREE.BoxGeometry(32, 1, 32);
+            const floorMat = new THREE.MeshStandardMaterial({
+                color: 0x2b1c18,
+                roughness: 0.6,
+                metalness: 0.1
+            });
+            terraceFloorMesh = new THREE.Mesh(floorGeo, floorMat);
+            terraceFloorMesh.position.y = -0.5;
+            terraceFloorMesh.receiveShadow = true;
+            scene.add(terraceFloorMesh);
+
+            // Terrace Boundary Parapet Walls
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0x4a342d, roughness: 0.7 });
+            const wallHeight = 2.2;
+            const wallThickness = 0.6;
+            const terraceSize = 32;
+
+            // 4 Parapet Walls
+            const wallGeomH = new THREE.BoxGeometry(terraceSize, wallHeight, wallThickness);
+            const wallGeomV = new THREE.BoxGeometry(wallThickness, wallHeight, terraceSize);
+
+            const wallNorth = new THREE.Mesh(wallGeomH, wallMat);
+            wallNorth.position.set(0, wallHeight / 2, -terraceSize / 2);
+            wallNorth.castShadow = true;
+            wallNorth.receiveShadow = true;
+            scene.add(wallNorth);
+
+            const wallSouth = new THREE.Mesh(wallGeomH, wallMat);
+            wallSouth.position.set(0, wallHeight / 2, terraceSize / 2);
+            wallSouth.castShadow = true;
+            wallSouth.receiveShadow = true;
+            scene.add(wallSouth);
+
+            const wallEast = new THREE.Mesh(wallGeomV, wallMat);
+            wallEast.position.set(terraceSize / 2, wallHeight / 2, 0);
+            wallEast.castShadow = true;
+            wallEast.receiveShadow = true;
+            scene.add(wallEast);
+
+            const wallWest = new THREE.Mesh(wallGeomV, wallMat);
+            wallWest.position.set(-terraceSize / 2, wallHeight / 2, 0);
+            wallWest.castShadow = true;
+            wallWest.receiveShadow = true;
+            scene.add(wallWest);
+
+            // Decorative Rangoli on Center Floor
+            const rangoliGeo = new THREE.RingGeometry(0.1, 4.5, 32);
+            const rangoliMat = new THREE.MeshBasicMaterial({
+                color: 0xf59e0b,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.8
+            });
+            const rangoli = new THREE.Mesh(rangoliGeo, rangoliMat);
+            rangoli.rotation.x = Math.PI / 2;
+            rangoli.position.set(0, 0.02, 0);
+            scene.add(rangoli);
+
+            // Decorative Clay Diyas around Parapet Walls
+            for (let i = -14; i <= 14; i += 4) {
+                spawnDiya(i, 2.2, -15.6);
+                spawnDiya(i, 2.2, 15.6);
+                spawnDiya(-15.6, 2.2, i);
+                spawnDiya(15.6, 2.2, i);
+            }
+
+            // Distant City Skylines / Buildings
+            for (let b = 0; b < 25; b++) {
+                const bw = 6 + Math.random() * 10;
+                const bh = 15 + Math.random() * 35;
+                const bd = 6 + Math.random() * 10;
+
+                const bGeo = new THREE.BoxGeometry(bw, bh, bd);
+                const bMat = new THREE.MeshStandardMaterial({
+                    color: 0x0c071e,
+                    roughness: 0.9
+                });
+                const bMesh = new THREE.Mesh(bGeo, bMat);
+
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 50 + Math.random() * 60;
+                bMesh.position.set(Math.cos(angle) * dist, bh / 2 - 15, Math.sin(angle) * dist);
+                scene.add(bMesh);
+            }
+        }
+
+        function spawnDiya(x, y, z) {
+            // Clay Pot
+            const diyaGeo = new THREE.CylinderGeometry(0.3, 0.15, 0.25, 12);
+            const diyaMat = new THREE.MeshStandardMaterial({ color: 0x9a3412, roughness: 0.8 });
+            const diya = new THREE.Mesh(diyaGeo, diyaMat);
+            diya.position.set(x, y, z);
+            scene.add(diya);
+
+            // Flame Glowing Light
+            const flameLight = new THREE.PointLight(0xffa500, 0.8, 6);
+            flameLight.position.set(x, y + 0.3, z);
+            scene.add(flameLight);
+            terraceLights.push(flameLight);
+        }
+
+        /* ------------------------------------------------------------------------
+           3. ANIMATED 3D INDIAN AVATARS (KURTA & LEHENGA CHARACTERS)
+           ------------------------------------------------------------------------ */
+        function spawnIndianCharacters() {
+            // Character 1: Raj (Male Kurta-Pyjama)
+            createIndianCharacter({
+                name: "Raj",
+                x: -5, z: -3,
+                outfitColor: 0xd97706, // Golden Yellow Kurta
+                pantsColor: 0xfffdf9,  // White Pyjama
+                isFemale: false
+            });
+
+            // Character 2: Priya (Female Lehenga-Choli)
+            createIndianCharacter({
+                name: "Priya",
+                x: 5, z: -2,
+                outfitColor: 0xbe123c, // Royal Crimson Lehenga
+                dupattaColor: 0xf59e0b, // Saffron Dupatta
+                isFemale: true
+            });
+
+            // Character 3: Amit (Male Red Kurta)
+            createIndianCharacter({
+                name: "Amit",
+                x: 0, z: 6,
+                outfitColor: 0x9f1239, // Deep Red Kurta
+                pantsColor: 0xfffdf9,
+                isFemale: false
+            });
+        }
+
+        function createIndianCharacter(config) {
+            const charGroup = new THREE.Group();
+            charGroup.position.set(config.x, 0, config.z);
+
+            // Head & Skin Material
+            const skinMat = new THREE.MeshStandardMaterial({ color: 0xd29d72, roughness: 0.6 });
+            const headGeo = new THREE.SphereGeometry(0.45, 16, 16);
+            const head = new THREE.Mesh(headGeo, skinMat);
+            head.position.y = 2.7;
+            head.castShadow = true;
+            charGroup.add(head);
+
+            // Hair
+            const hairGeo = new THREE.SphereGeometry(0.48, 16, 16);
+            const hairMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+            const hair = new THREE.Mesh(hairGeo, hairMat);
+            hair.position.set(0, 2.8, -0.05);
+            charGroup.add(hair);
+
+            let torsoMesh;
+            if (!config.isFemale) {
+                // Male Kurta (Torso)
+                const kurtaGeo = new THREE.CylinderGeometry(0.5, 0.6, 1.4, 12);
+                const kurtaMat = new THREE.MeshStandardMaterial({ color: config.outfitColor, roughness: 0.5 });
+                torsoMesh = new THREE.Mesh(kurtaGeo, kurtaMat);
+                torsoMesh.position.y = 1.7;
+                torsoMesh.castShadow = true;
+                charGroup.add(torsoMesh);
+
+                // Legs (Pyjama)
+                const legGeo = new THREE.CylinderGeometry(0.18, 0.15, 1.1, 10);
+                const legMat = new THREE.MeshStandardMaterial({ color: config.pantsColor, roughness: 0.6 });
+
+                const leftLeg = new THREE.Mesh(legGeo, legMat);
+                leftLeg.position.set(-0.25, 0.55, 0);
+                leftLeg.castShadow = true;
+                charGroup.add(leftLeg);
+
+                const rightLeg = new THREE.Mesh(legGeo, legMat);
+                rightLeg.position.set(0.25, 0.55, 0);
+                rightLeg.castShadow = true;
+                charGroup.add(rightLeg);
+            } else {
+                // Female Lehenga (Skirt Cone)
+                const lehengaGeo = new THREE.ConeGeometry(0.9, 1.6, 16);
+                const lehengaMat = new THREE.MeshStandardMaterial({ color: config.outfitColor, roughness: 0.5 });
+                torsoMesh = new THREE.Mesh(lehengaGeo, lehengaMat);
+                torsoMesh.position.y = 0.8;
+                torsoMesh.castShadow = true;
+                charGroup.add(torsoMesh);
+
+                // Female Choli (Upper Torso)
+                const choliGeo = new THREE.CylinderGeometry(0.4, 0.45, 0.7, 12);
+                const choliMat = new THREE.MeshStandardMaterial({ color: config.outfitColor, roughness: 0.5 });
+                const choli = new THREE.Mesh(choliGeo, choliMat);
+                choli.position.y = 1.95;
+                choli.castShadow = true;
+                charGroup.add(choli);
+
+                // Dupatta Sash
+                const dupattaGeo = new THREE.TorusGeometry(0.55, 0.1, 8, 16);
+                const dupattaMat = new THREE.MeshStandardMaterial({ color: config.dupattaColor, roughness: 0.4 });
+                const dupatta = new THREE.Mesh(dupattaGeo, dupattaMat);
+                dupatta.rotation.x = Math.PI / 3;
+                dupatta.position.y = 2.0;
+                charGroup.add(dupatta);
+            }
+
+            // Arms
+            const armGeo = new THREE.CylinderGeometry(0.12, 0.1, 1.1, 10);
+            const armMat = new THREE.MeshStandardMaterial({ color: config.outfitColor, roughness: 0.5 });
+
+            const leftArm = new THREE.Mesh(armGeo, armMat);
+            leftArm.position.set(-0.6, 1.7, 0);
+            leftArm.rotation.z = 0.2;
+            charGroup.add(leftArm);
+
+            const rightArm = new THREE.Mesh(armGeo, armMat);
+            rightArm.position.set(0.6, 1.7, 0);
+            rightArm.rotation.z = -0.2;
+            charGroup.add(rightArm);
+
+            scene.add(charGroup);
+
+            // Store Reference for Ragdoll / Animations
+            characters.push({
+                group: charGroup,
+                leftArm: leftArm,
+                rightArm: rightArm,
+                initialPos: new THREE.Vector3(config.x, 0, config.z),
+                velocity: new THREE.Vector3(0, 0, 0),
+                isRagdoll: false,
+                danceAngle: Math.random() * Math.PI * 2
+            });
+        }
+
+        /* ------------------------------------------------------------------------
+           4. FIREWORK CREATION & PARTICLE PHYSICS SYSTEM
+           ------------------------------------------------------------------------ */
+        function spawnFireworkAtLocation(targetPoint) {
+            const startX = targetPoint.x;
+            const startZ = targetPoint.z;
+
+            switch(selectedCracker) {
+                case 'rocket':
+                    createRocket(startX, startZ);
+                    break;
+                case 'chakri':
+                    createChakri(startX, startZ);
+                    break;
+                case 'anar':
+                    createAnar(startX, startZ);
+                    break;
+                case 'bomb':
+                    createSutliBomb(startX, startZ);
+                    break;
+                case 'ladi':
+                    createGarlandLadi(startX, startZ);
+                    break;
+            }
+
+            burstCount++;
+            document.getElementById('burst-counter').textContent = burstCount;
+        }
+
+        // --- ROCKET ---
+        function createRocket(x, z) {
+            const rocketGeo = new THREE.CylinderGeometry(0.15, 0.15, 1.2, 8);
+            const rocketMat = new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.5 });
+            const rocketMesh = new THREE.Mesh(rocketGeo, rocketMat);
+            rocketMesh.position.set(x, 0.6, z);
+            scene.add(rocketMesh);
+
+            activeFireworks.push({
+                type: 'rocket',
+                mesh: rocketMesh,
+                targetY: 18 + Math.random() * 8,
+                speed: 0.45,
+                update: function() {
+                    this.mesh.position.y += this.speed;
+                    // Trail sparks
+                    createSparkTrail(this.mesh.position.x, this.mesh.position.y - 0.6, this.mesh.position.z, 0xffaa00, 3);
+
+                    if (this.mesh.position.y >= this.targetY) {
+                        explodeSphere(this.mesh.position.x, this.mesh.position.y, this.mesh.position.z);
+                        scene.remove(this.mesh);
+                        return true; // remove from loop
+                    }
+                    return false;
+                }
+            });
+        }
+
+        // --- GROUND SPINNER (CHAKRI) ---
+        function createChakri(x, z) {
+            const chakriGeo = new THREE.CylinderGeometry(0.8, 0.8, 0.2, 16);
+            const chakriMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.3 });
+            const chakriMesh = new THREE.Mesh(chakriGeo, chakriMat);
+            chakriMesh.position.set(x, 0.1, z);
+            scene.add(chakriMesh);
+
+            let duration = 180; // frames
+            activeFireworks.push({
+                type: 'chakri',
+                mesh: chakriMesh,
+                update: function() {
+                    this.mesh.rotation.y += 0.4;
+                    duration--;
+
+                    // Emit spinning ground sparks
+                    const angle = this.mesh.rotation.y * 3;
+                    const vx = Math.cos(angle) * 0.3;
+                    const vz = Math.sin(angle) * 0.3;
+                    createSparksVector(this.mesh.position.x, 0.2, this.mesh.position.z, vx, 0.05, vz, 0xf59e0b, 5);
+
+                    if (duration <= 0) {
+                        explodeSphere(this.mesh.position.x, 0.5, this.mesh.position.z, 0.5);
+                        scene.remove(this.mesh);
+                        return true;
+                    }
+                    return false;
+                }
+            });
+        }
+
+        // --- FLOWERPOT (ANAR) ---
+        function createAnar(x, z) {
+            const anarGeo = new THREE.ConeGeometry(0.6, 1.2, 12);
+            const anarMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.4 });
+            const anarMesh = new THREE.Mesh(anarGeo, anarMat);
+            anarMesh.position.set(x, 0.6, z);
+            scene.add(anarMesh);
+
+            let duration = 200;
+            activeFireworks.push({
+                type: 'anar',
+                mesh: anarMesh,
+                update: function() {
+                    duration--;
+
+                    // Fountain particles shooting up
+                    for (let i = 0; i < 8; i++) {
+                        const vx = (Math.random() - 0.5) * 0.25;
+                        const vy = 0.4 + Math.random() * 0.4;
+                        const vz = (Math.random() - 0.5) * 0.25;
+                        const color = Math.random() > 0.3 ? 0xffd700 : 0xff4500;
+                        createSparksVector(this.mesh.position.x, 1.2, this.mesh.position.z, vx, vy, vz, color, 1);
+                    }
+
+                    if (duration <= 0) {
+                        scene.remove(this.mesh);
+                        return true;
+                    }
+                    return false;
+                }
+            });
+        }
+
+        // --- SUTLI BOMB (RAGDOLL TRIGGER) ---
+        function createSutliBomb(x, z) {
+            const bombGeo = new THREE.BoxGeometry(0.5, 0.6, 0.5);
+            const bombMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.9 });
+            const bombMesh = new THREE.Mesh(bombGeo, bombMat);
+            bombMesh.position.set(x, 0.3, z);
+            scene.add(bombMesh);
+
+            let fuseTime = 90; // frames before detonation
+            activeFireworks.push({
+                type: 'bomb',
+                mesh: bombMesh,
+                update: function() {
+                    fuseTime--;
+                    // Fuse smoke/sparkle
+                    createSparkTrail(this.mesh.position.x, 0.7, this.mesh.position.z, 0xff0000, 1);
+
+                    if (fuseTime <= 0) {
+                        // Massive shockwave burst & character blast reaction!
+                        triggerBombExplosion(this.mesh.position.x, 0.3, this.mesh.position.z);
+                        scene.remove(this.mesh);
+                        return true;
+                    }
+                    return false;
+                }
+            });
+        }
+
+        // --- GARLAND LADI ---
+        function createGarlandLadi(x, z) {
+            let count = 8;
+            let interval = 12; // frames between small bursts
+            let timer = 0;
+
+            activeFireworks.push({
+                type: 'ladi',
+                update: function() {
+                    timer++;
+                    if (timer % interval === 0) {
+                        const offsetX = (Math.random() - 0.5) * 2;
+                        const offsetZ = (Math.random() - 0.5) * 2;
+                        explodeSphere(x + offsetX, 0.4, z + offsetZ, 0.4);
+                        count--;
+                    }
+                    return count <= 0;
+                }
+            });
+        }
+
+        /* ------------------------------------------------------------------------
+           5. EXPLOSIONS & RAGDOLL PHYSICS REACTIONS
+           ------------------------------------------------------------------------ */
+        function explodeSphere(x, y, z, scaleMultiplier = 1.0) {
+            const particleCount = Math.floor(60 * scaleMultiplier);
+            const colors = [0xffd700, 0xff4500, 0xef4444, 0x3b82f6, 0x10b981, 0xec4899];
+            const baseColor = colors[Math.floor(Math.random() * colors.length)];
+
+            // Dynamic Point Light Flash
+            const flashLight = new THREE.PointLight(baseColor, 4.0 * scaleMultiplier, 25 * scaleMultiplier);
+            flashLight.position.set(x, y, z);
+            scene.add(flashLight);
+            setTimeout(() => scene.remove(flashLight), 150);
+
+            for (let i = 0; i < particleCount; i++) {
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.random() * Math.PI;
+                const speed = (0.2 + Math.random() * 0.4) * scaleMultiplier;
+
+                const vx = Math.sin(phi) * Math.cos(theta) * speed;
+                const vy = Math.cos(phi) * speed;
+                const vz = Math.sin(phi) * Math.sin(theta) * speed;
+
+                createSparksVector(x, y, z, vx, vy, vz, baseColor, 1, 45);
+            }
+
+            score += Math.floor(50 * scaleMultiplier);
+            document.getElementById('score-counter').textContent = score;
+        }
+
+        function triggerBombExplosion(x, y, z) {
+            // Loud Big Burst
+            explodeSphere(x, y + 0.5, z, 2.2);
+
+            // Check proximity to Indian Avatars for Ragdoll Reaction!
+            const bombPos = new THREE.Vector3(x, y, z);
+            characters.forEach(char => {
+                const dist = char.group.position.distanceTo(bombPos);
+                if (dist < 7.0) {
+                    // Shockwave force pushing character away
+                    const pushDir = new THREE.Vector3().subVectors(char.group.position, bombPos).normalize();
+                    pushDir.y = 0.6; // Launch upward into air
+                    const force = (7.0 - dist) * 0.15;
+
+                    char.velocity.addScaledVector(pushDir, force);
+                    char.isRagdoll = true;
+
+                    // Trigger temporary ragdoll rotation
+                    setTimeout(() => {
+                        char.isRagdoll = false;
+                    }, 1800);
+                }
+            });
+        }
+
+        function createSparkTrail(x, y, z, color, count) {
+            for (let i = 0; i < count; i++) {
+                const vx = (Math.random() - 0.5) * 0.08;
+                const vy = (Math.random() - 0.5) * 0.08;
+                const vz = (Math.random() - 0.5) * 0.08;
+                createSparksVector(x, y, z, vx, vy, vz, color, 1, 15);
+            }
+        }
+
+        function createSparksVector(x, y, z, vx, vy, vz, colorHex, size = 1, maxLife = 40) {
+            const pGeo = new THREE.SphereGeometry(0.08 * size, 6, 6);
+            const pMat = new THREE.MeshBasicMaterial({ color: colorHex });
+            const pMesh = new THREE.Mesh(pGeo, pMat);
+            pMesh.position.set(x, y, z);
+            scene.add(pMesh);
+
+            activeParticles.push({
+                mesh: pMesh,
+                vx: vx,
+                vy: vy,
+                vz: vz,
+                life: maxLife,
+                maxLife: maxLife,
+                update: function() {
+                    this.mesh.position.x += this.vx;
+                    this.mesh.position.y += this.vy;
+                    this.mesh.position.z += this.vz;
+
+                    this.vy -= 0.008; // Gravity
+                    this.life--;
+
+                    const scale = Math.max(0.01, this.life / this.maxLife);
+                    this.mesh.scale.set(scale, scale, scale);
+
+                    if (this.life <= 0) {
+                        scene.remove(this.mesh);
+                        return true;
+                    }
+                    return false;
+                }
+            });
+        }
+
+        /* ------------------------------------------------------------------------
+           6. EVENT LISTENERS & USER INTERACTION
+           ------------------------------------------------------------------------ */
+        function setupEventListeners() {
+            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('pointerdown', onPointerDown);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onPointerDown(event) {
+            // Avoid clicking UI elements
+            if (event.clientY > window.innerHeight - 100 || event.clientY < 90) return;
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObject(terraceFloorMesh);
+
+            if (intersects.length > 0) {
+                const point = intersects[0].point;
+                spawnFireworkAtLocation(point);
+            }
+        }
+
+        function selectCracker(type) {
+            selectedCracker = type;
+            document.querySelectorAll('.btn-firework').forEach(btn => btn.classList.remove('active'));
+            const activeBtn = document.getElementById(`btn-${type}`);
+            if (activeBtn) activeBtn.classList.add('active');
+        }
+
+        function setCameraMode(mode) {
+            if (mode === 'orbit') {
+                camera.position.set(0, 14, 26);
+                controls.target.set(0, 3, 0);
+            } else if (mode === 'top') {
+                camera.position.set(0, 32, 0.1);
+                controls.target.set(0, 0, 0);
+            } else if (mode === 'character') {
+                const c = characters[0].group.position;
+                camera.position.set(c.x, c.y + 3.2, c.z + 4);
+                controls.target.set(c.x, c.y + 2, c.z - 5);
+            }
+        }
+
+        /* ------------------------------------------------------------------------
+           7. MAIN ANIMATION & PHYSICS LOOP
+           ------------------------------------------------------------------------ */
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Update Controls
+            controls.update();
+
+            // Update Active Fireworks
+            for (let i = activeFireworks.length - 1; i >= 0; i--) {
+                if (activeFireworks[i].update()) {
+                    activeFireworks.splice(i, 1);
+                }
+            }
+
+            // Update Active Particles
+            for (let i = activeParticles.length - 1; i >= 0; i--) {
+                if (activeParticles[i].update()) {
+                    activeParticles.splice(i, 1);
+                }
+            }
+
+            // Update Characters (Dance & Ragdoll Physics)
+            characters.forEach(char => {
+                if (char.isRagdoll) {
+                    // Ragdoll physics movement & tumble
+                    char.group.position.add(char.velocity);
+                    char.group.rotation.x += 0.15;
+                    char.group.rotation.z += 0.1;
+                    char.velocity.y -= 0.015; // Gravity
+
+                    // Floor Collision
+                    if (char.group.position.y <= 0) {
+                        char.group.position.y = 0;
+                        char.velocity.set(0, 0, 0);
+                    }
+                } else {
+                    // Recover upright position
+                    char.group.rotation.x *= 0.8;
+                    char.group.rotation.z *= 0.8;
+                    char.group.position.y = 0;
+
+                    // Idle Festive Dance Motion
+                    char.danceAngle += 0.05;
+                    char.leftArm.rotation.z = Math.sin(char.danceAngle) * 0.4 + 0.3;
+                    char.rightArm.rotation.z = -Math.sin(char.danceAngle) * 0.4 - 0.3;
+                    char.group.position.y = Math.abs(Math.sin(char.danceAngle * 2)) * 0.15;
+                }
+            });
+
+            // Render 3D Scene
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
